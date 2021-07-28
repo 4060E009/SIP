@@ -1,0 +1,98 @@
+MainActivity.kt
+**
+package com.example.sip
+
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import android.os.Bundle
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import org.abtollc.sdk.AbtoApplication
+import org.abtollc.sdk.AbtoPhone
+import org.abtollc.sdk.AbtoPhoneCfg
+import org.abtollc.sdk.OnInitializeListener
+import org.abtollc.utils.Log
+import org.abtollc.utils.codec.Codec
+
+lateinit var abtoPhone: AbtoPhone
+var REQUEST_CODE_ASK_MULTIPLE_PERMISSIONS = 124
+
+
+class MainActivity : AppCompatActivity(), OnInitializeListener {
+
+
+    val TAG = "MainActivity"
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+
+        abtoPhone = (application as AbtoApplication).abtoPhone
+        val bCanStartPhoneInitialization = if (Build.VERSION.SDK_INT >= 23) askPermissions() else true
+        if (bCanStartPhoneInitialization) initPhone()
+
+
+    }
+
+    private fun initPhone() {
+        abtoPhone.setInitializeListener(this)
+        val config: AbtoPhoneCfg = abtoPhone.getConfig()
+        config.setCodecPriority(Codec.PCMU, 200.toShort())
+        config.setCodecPriority(Codec.PCMA, 100.toShort())
+        config.setCodecPriority(Codec.H264, 220.toShort())
+        config.setCodecPriority(Codec.H263_1998, 210.toShort())
+        config.sipPort = 0
+        config.setSignallingTransport(AbtoPhoneCfg.SignalingTransportType.UDP)
+        Log.setLogLevel(5)
+        Log.setUseFile(true)
+        abtoPhone.initialize(true)
+        android.util.Log.d(TAG, "initPhone: ")
+
+    }
+
+    private fun askPermissions(): Boolean {
+        android.util.Log.d(TAG, "askPermissions: ")
+        val permissionsNeeded: ArrayList<String> = ArrayList<String>()
+        val permissionsList: ArrayList<String> = ArrayList<String>()
+
+        if (!addPermission(permissionsList, Manifest.permission.RECORD_AUDIO)) {
+            permissionsNeeded.add("RECORD_AUDIO")
+        }
+        if (!addPermission(permissionsList, Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+            permissionsNeeded.add("WRITE_EXTERNAL_STORAGE")
+        }
+        if (!addPermission(permissionsList, Manifest.permission.CAMERA)) {
+            permissionsNeeded.add("CAMERA")
+        }
+        if (!addPermission(permissionsList, Manifest.permission.USE_SIP)) {
+            permissionsNeeded.add("USE_SIP")
+        }
+        if (permissionsList.size > 0) {
+            if (permissionsNeeded.size > 0) {
+                ActivityCompat.requestPermissions(this, permissionsList.toTypedArray(), REQUEST_CODE_ASK_MULTIPLE_PERMISSIONS)
+                return false
+            }
+            ActivityCompat.requestPermissions(this, permissionsList.toTypedArray(), REQUEST_CODE_ASK_MULTIPLE_PERMISSIONS)
+            return false
+        }
+        return true
+
+    }
+
+    private fun addPermission(permissionsList: ArrayList<String>, permission: String): Boolean {
+        android.util.Log.d(TAG, "addPermission: ")
+        if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
+            permissionsList.add(permission)
+            // Check for Rationale Option
+            if (!ActivityCompat.shouldShowRequestPermissionRationale(this, permission)) {
+                return false
+            }
+        }
+        return true
+    }
+
+    override fun onInitializeState(p0: OnInitializeListener.InitializeState?, p1: String?) {
+    }
+}
