@@ -18,7 +18,7 @@ activity_main.xml
         app:layout_constraintLeft_toLeftOf="parent"
         android:layout_marginBottom="80dp"
         android:layout_marginLeft="80dp"
-        android:text="Button" />
+        android:text="接聽" />
 
     <Button
         android:id="@+id/button2"
@@ -29,7 +29,7 @@ activity_main.xml
         app:layout_constraintBottom_toBottomOf="parent"
         android:layout_marginRight="80dp"
         android:layout_marginBottom="80dp"
-        android:text="Button" />
+        android:text="掛斷" />
 </androidx.constraintlayout.widget.ConstraintLayout>
 ========================================================================================
 shape_circle.xml
