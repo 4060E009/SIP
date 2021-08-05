@@ -140,7 +140,9 @@ val  RegProxy = ""
 val  RegPassword = "000000"
 val  RegUser = "009"
 
-var inComingCallId: Int = 0
+val callEventsReceiver = CallEventsReceiver()
+
+var inComingCallId: Int = 0                              //新增
 
 class MainActivity : AppCompatActivity(), OnInitializeListener, OnIncomingCallListener {
 
@@ -254,7 +256,7 @@ class MainActivity : AppCompatActivity(), OnInitializeListener, OnIncomingCallLi
     override fun onInitializeState(p0: InitializeState?, p1: String?) {
 
     }
-    override fun OnIncomingCall(callId: Int, p1: String?, p2: Long) {
+    override fun OnIncomingCall(callId: Int, remoteContact: String?, accountId: Long) {
         inComingCallId = callId
         android.util.Log.d(TAG, "callId" + callId )
         setContentView(R.layout.av_screen)
@@ -262,7 +264,8 @@ class MainActivity : AppCompatActivity(), OnInitializeListener, OnIncomingCallLi
     }
 
     fun onBtnClick(view: View) {
-            setContentView(R.layout.call)
+        callEventsReceiver.onReceive(this, intent)                  //新增
+        setContentView(R.layout.call)
     }
 
     fun onBtnClick1(view: View) {
