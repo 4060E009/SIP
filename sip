@@ -140,9 +140,9 @@ val  RegProxy = ""
 val  RegPassword = "000000"
 val  RegUser = "009"
 
-val callEventsReceiver = CallEventsReceiver()
+val callEventsReceiver = CallEventsReceiver()           //新增
 
-var inComingCallId: Int = 0                              //新增
+var inComingCallId: Int = 0                              
 
 class MainActivity : AppCompatActivity(), OnInitializeListener, OnIncomingCallListener {
 
