@@ -112,14 +112,10 @@ package com.example.sip
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.RemoteException
 import android.view.View
-import android.widget.Button
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -138,15 +134,11 @@ var REQUEST_CODE_ASK_MULTIPLE_PERMISSIONS = 124
 val  RegDomain = "192.168.5.19:5060"
 val  RegProxy = ""
 val  RegPassword = "000000"
-val  RegUser = "009"
+val  RegUser = "004"
 
-val callEventsReceiver = CallEventsReceiver()           //新增
-
-var inComingCallId: Int = 0                              
+var inComingCallId: Int = 0
 
 class MainActivity : AppCompatActivity(), OnInitializeListener, OnIncomingCallListener {
-
-
 
     val TAG = "MainActivity"
 
@@ -159,7 +151,7 @@ class MainActivity : AppCompatActivity(), OnInitializeListener, OnIncomingCallLi
             if (Build.VERSION.SDK_INT >= 23) askPermissions() else true
         if (bCanStartPhoneInitialization) initPhone()
 
-        abtoPhone.config.addAccount(RegDomain,RegProxy,RegUser,RegPassword,null, "", 300, false)
+        abtoPhone.config.addAccount(RegDomain, RegProxy, RegUser, RegPassword, null, "", 300, false)
         //Register
         try {
             abtoPhone.register()
@@ -197,7 +189,7 @@ class MainActivity : AppCompatActivity(), OnInitializeListener, OnIncomingCallLi
         Log.setUseFile(true)
         abtoPhone.initialize(true)
         abtoPhone.setInitializeListener(this)
-        android.util.Log.d(TAG, "initPhone: " + abtoPhone )
+        android.util.Log.d(TAG, "initPhone: " + abtoPhone)
     }
 
     private fun askPermissions(): Boolean {
@@ -256,26 +248,59 @@ class MainActivity : AppCompatActivity(), OnInitializeListener, OnIncomingCallLi
     override fun onInitializeState(p0: InitializeState?, p1: String?) {
 
     }
+
     override fun OnIncomingCall(callId: Int, remoteContact: String?, accountId: Long) {
         inComingCallId = callId
-        android.util.Log.d(TAG, "callId" + callId )
+        android.util.Log.d(TAG, "callId" + callId)
         setContentView(R.layout.av_screen)
 
     }
 
     fun onBtnClick(view: View) {
-        callEventsReceiver.onReceive(this, intent)                  //新增
-        setContentView(R.layout.call)
+        val isAppInBackground = App.app?.isAppInBackground() ?: return
+        if (App.app?.abtoPhone != null) {
+            if (!isAppInBackground) {
+                android.util.Log.d("LifeCycle", "click answer in Foreground")
+                abtoPhone.answerCall(inComingCallId, 200, false)
+                setContentView(R.layout.call)
+                return
+            } else {
+                abtoPhone.answerCall(inComingCallId, 200, false)
+                android.util.Log.d("LifeCycle", "click answer in Background")
+            }
+        }
     }
+
 
     fun onBtnClick1(view: View) {
+        val isAppInBackground = App.app?.isAppInBackground() ?: return
+        if (App.app?.abtoPhone != null) {
+            if (!isAppInBackground) {
+                android.util.Log.d("LifeCycle", "click answer in Foreground")
+                App.app?.abtoPhone?.rejectCall(inComingCallId)
+                setContentView(R.layout.call)
+            } else {
+                App.app?.abtoPhone?.rejectCall(inComingCallId)
+                android.util.Log.d("LifeCycle", "click answer in Background")
+            }
+        }
         setContentView(R.layout.activity_main)
     }
 
-    fun onBtnClick3(view: View) {
+    fun onBtnClick2(view: View) {
+        val isAppInBackground = App.app?.isAppInBackground() ?: return
+        if (App.app?.abtoPhone != null) {
+            if (!isAppInBackground) {
+                android.util.Log.d("LifeCycle", "click answer in Foreground")
+                App.app?.abtoPhone?.rejectCall(inComingCallId)
+                setContentView(R.layout.call)
+            } else {
+                App.app?.abtoPhone?.rejectCall(inComingCallId)
+                android.util.Log.d("LifeCycle", "click answer in Background")
+            }
+        }
         setContentView(R.layout.activity_main)
     }
-}
 =================================================================================================================
 CallEventsReceiver.kt
 **
