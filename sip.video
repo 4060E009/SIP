@@ -1,2 +1,214 @@
 https://docs.agora.io/cn/Video/start_call_android?platform=Android                                                    //參考網址
 https://developer.android.com/reference/kotlin/android/telecom/InCallService.VideoCall                                //參考網址
+
+MainActivity.kt
+**
+package com.example.sip
+
+import android.Manifest
+import android.annotation.SuppressLint
+import android.content.pm.PackageManager
+import android.os.Build
+import android.os.RemoteException
+import android.view.SurfaceView
+import android.view.View
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import org.abtollc.sdk.*
+import org.abtollc.sdk.AbtoPhone.INVALID_CALL_ID
+import org.abtollc.sdk.OnInitializeListener.InitializeState
+import org.abtollc.utils.Log
+import org.abtollc.utils.codec.Codec
+import android.os.Bundle as Bundle1
+
+
+@SuppressLint("StaticFieldLeak")
+lateinit var abtoPhone: AbtoPhone
+private var activeCallId = INVALID_CALL_ID
+var REQUEST_CODE_ASK_MULTIPLE_PERMISSIONS = 124
+val  RegDomain = "192.168.5.19:5060"
+val  RegProxy = ""
+val  RegPassword = "000000"
+val  RegUser = "009"
+
+val callEventsReceiver = CallEventsReceiver()
+
+lateinit var surfaceView: SurfaceView
+
+var inComingCallId: Int = 0
+
+class MainActivity : AppCompatActivity(), OnInitializeListener, OnIncomingCallListener {
+
+
+
+    val TAG = "MainActivity"
+
+    override fun onCreate(savedInstanceState: Bundle1?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+
+        abtoPhone = (application as App).abtoPhone
+        surfaceView = findViewById(R.id.surfaceView)
+        val bCanStartPhoneInitialization =
+            if (Build.VERSION.SDK_INT >= 23) askPermissions() else true
+        if (bCanStartPhoneInitialization) initPhone()
+
+        abtoPhone.config.addAccount(RegDomain,RegProxy,RegUser,RegPassword,null, "", 300, false)
+        //Register
+        try {
+            abtoPhone.register()
+        } catch (e: RemoteException) {
+            android.util.Log.d(TAG, "RegistrationFailed: " + e)
+            e.printStackTrace()
+        }
+        abtoPhone.setIncomingCallListener(this)
+
+        // Set registration event
+        abtoPhone.setRegistrationStateListener(object : OnRegistrationListener {
+            override fun onRegistrationFailed(accId: Long, statusCode: Int, statusText: String) {
+                android.util.Log.d(TAG, "onRegistrationFailed ")
+            }
+
+            override fun onRegistered(accId: Long) {
+                android.util.Log.d(TAG, "onRegistered")
+            }
+
+            override fun onUnRegistered(accId: Long) {
+                android.util.Log.d(TAG, "onUnRegistered")
+            }
+        })
+    }
+
+    private fun initPhone() {
+        val config: AbtoPhoneCfg = abtoPhone.getConfig()
+        config.setCodecPriority(Codec.PCMU, 200.toShort())
+        config.setCodecPriority(Codec.PCMA, 100.toShort())
+        config.setCodecPriority(Codec.H264, 220.toShort())
+        config.setCodecPriority(Codec.H263_1998, 210.toShort())
+        config.sipPort = 0
+        config.setSignallingTransport(AbtoPhoneCfg.SignalingTransportType.UDP)
+        Log.setLogLevel(5)
+        Log.setUseFile(true)
+        abtoPhone.initialize(true)
+        abtoPhone.setInitializeListener(this)
+        android.util.Log.d(TAG, "initPhone: " + abtoPhone )
+    }
+
+    private fun askPermissions(): Boolean {
+        android.util.Log.d(TAG, "askPermissions: ")
+        val permissionsNeeded: ArrayList<String> = ArrayList<String>()
+        val permissionsList: ArrayList<String> = ArrayList<String>()
+
+        if (!addPermission(permissionsList, Manifest.permission.RECORD_AUDIO)) {
+            permissionsNeeded.add("RECORD_AUDIO")
+        }
+        if (!addPermission(permissionsList, Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+            permissionsNeeded.add("WRITE_EXTERNAL_STORAGE")
+        }
+        if (!addPermission(permissionsList, Manifest.permission.CAMERA)) {
+            permissionsNeeded.add("CAMERA")
+        }
+        if (!addPermission(permissionsList, Manifest.permission.USE_SIP)) {
+            permissionsNeeded.add("USE_SIP")
+        }
+        if (permissionsList.size > 0) {
+            if (permissionsNeeded.size > 0) {
+                ActivityCompat.requestPermissions(
+                    this,
+                    permissionsList.toTypedArray(),
+                    REQUEST_CODE_ASK_MULTIPLE_PERMISSIONS
+                )
+                return false
+            }
+            ActivityCompat.requestPermissions(
+                this,
+                permissionsList.toTypedArray(),
+                REQUEST_CODE_ASK_MULTIPLE_PERMISSIONS
+            )
+            return false
+        }
+        return true
+
+    }
+
+    private fun addPermission(permissionsList: ArrayList<String>, permission: String): Boolean {
+        android.util.Log.d(TAG, "addPermission: ")
+        if (ContextCompat.checkSelfPermission(
+                this,
+                permission
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            permissionsList.add(permission)
+            // Check for Rationale Option
+            if (!ActivityCompat.shouldShowRequestPermissionRationale(this, permission)) {
+                return false
+            }
+        }
+        return true
+    }
+
+    override fun onInitializeState(p0: InitializeState?, p1: String?) {
+
+    }
+    override fun OnIncomingCall(callId: Int, remoteContact: String?, accountId: Long) {
+        inComingCallId = callId
+        android.util.Log.d(TAG, "callId" + callId )
+        abtoPhone.isVideoCall(inComingCallId)       // check current call has video, return True
+        abtoPhone.setVideoWindows(callId, surfaceView, surfaceView) // issues
+        setContentView(R.layout.av_screen)
+
+    }
+
+    fun onBtnClick(view: View) {
+        android.util.Log.d("LifeCycle","isAppInForeground")
+//        abtoPhone.answerCall(inComingCallId,200,false)
+        abtoPhone.answerCall(inComingCallId,200, abtoPhone.isVideoCall(inComingCallId))
+        setContentView(R.layout.call)
+        return
+    }
+
+    fun onBtnClick1(view: View) {
+        abtoPhone.rejectCall(inComingCallId)
+        setContentView(R.layout.activity_main)
+        return
+    }
+
+    fun onBtnClick3(view: View) {
+        abtoPhone.rejectCall(inComingCallId)
+        setContentView(R.layout.activity_main)
+        return
+    }
+}
+============================================================================================
+call.xml
+**
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/grey"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <SurfaceView
+        android:id="@+id/surfaceView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/button3"
+        android:layout_marginBottom="200dp" />
+
+
+    <Button
+        android:onClick="onBtnClick3"
+        android:id="@+id/button3"
+        android:layout_width="90dp"
+        android:layout_height="90dp"
+        android:text="掛斷"
+        android:background="@drawable/shape_circle"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        android:layout_marginRight="155dp"
+        android:layout_marginBottom="80dp" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
