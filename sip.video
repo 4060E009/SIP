@@ -9,6 +9,8 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.PowerManager
+import android.os.PowerManager.WakeLock
 import android.os.RemoteException
 import android.view.SurfaceView
 import android.view.View
@@ -30,17 +32,16 @@ var REQUEST_CODE_ASK_MULTIPLE_PERMISSIONS = 124
 val  RegDomain = "192.168.5.19:5060"
 val  RegProxy = ""
 val  RegPassword = "000000"
-val  RegUser = "009"
-
-val callEventsReceiver = CallEventsReceiver()
-
-lateinit var surfaceView: SurfaceView
+val  RegUser = "004"
 
 var inComingCallId: Int = 0
 
-class MainActivity : AppCompatActivity(), OnInitializeListener, OnIncomingCallListener {
+@SuppressLint("StaticFieldLeak")
+private var localView: SurfaceView? = null
+@SuppressLint("StaticFieldLeak")
+private var remoteView: SurfaceView? = null
 
-
+class MainActivity : AppCompatActivity(), OnInitializeListener, OnIncomingCallListener, OnCallConnectedListener {
 
     val TAG = "MainActivity"
 
@@ -49,12 +50,12 @@ class MainActivity : AppCompatActivity(), OnInitializeListener, OnIncomingCallLi
         setContentView(R.layout.activity_main)
 
         abtoPhone = (application as App).abtoPhone
-        surfaceView = findViewById(R.id.surfaceView)
+
         val bCanStartPhoneInitialization =
             if (Build.VERSION.SDK_INT >= 23) askPermissions() else true
         if (bCanStartPhoneInitialization) initPhone()
 
-        abtoPhone.config.addAccount(RegDomain,RegProxy,RegUser,RegPassword,null, "", 300, false)
+        abtoPhone.config.addAccount(RegDomain, RegProxy, RegUser, RegPassword, null, "", 300, false)
         //Register
         try {
             abtoPhone.register()
@@ -63,6 +64,7 @@ class MainActivity : AppCompatActivity(), OnInitializeListener, OnIncomingCallLi
             e.printStackTrace()
         }
         abtoPhone.setIncomingCallListener(this)
+        abtoPhone.setCallConnectedListener(this)
 
         // Set registration event
         abtoPhone.setRegistrationStateListener(object : OnRegistrationListener {
@@ -82,17 +84,21 @@ class MainActivity : AppCompatActivity(), OnInitializeListener, OnIncomingCallLi
 
     private fun initPhone() {
         val config: AbtoPhoneCfg = abtoPhone.getConfig()
+        config.setCodecPriority(Codec.G729, 0.toShort())
+        config.setCodecPriority(Codec.GSM, 0.toShort())
         config.setCodecPriority(Codec.PCMU, 200.toShort())
         config.setCodecPriority(Codec.PCMA, 100.toShort())
         config.setCodecPriority(Codec.H264, 220.toShort())
         config.setCodecPriority(Codec.H263_1998, 210.toShort())
+        config.isVideoCallEnabled = true
         config.sipPort = 0
         config.setSignallingTransport(AbtoPhoneCfg.SignalingTransportType.UDP)
+        config.videoQualityMode = AbtoPhoneCfg.VIDEO_QUALITY_MODE.VIDEO_MODE_1920_1080
         Log.setLogLevel(5)
         Log.setUseFile(true)
         abtoPhone.initialize(true)
         abtoPhone.setInitializeListener(this)
-        android.util.Log.d(TAG, "initPhone: " + abtoPhone )
+        android.util.Log.d(TAG, "initPhone: " + abtoPhone)
     }
 
     private fun askPermissions(): Boolean {
@@ -151,33 +157,234 @@ class MainActivity : AppCompatActivity(), OnInitializeListener, OnIncomingCallLi
     override fun onInitializeState(p0: InitializeState?, p1: String?) {
 
     }
+
     override fun OnIncomingCall(callId: Int, remoteContact: String?, accountId: Long) {
         inComingCallId = callId
-        android.util.Log.d(TAG, "callId" + callId )
-        abtoPhone.isVideoCall(inComingCallId)       // check current call has video, return True
-        abtoPhone.setVideoWindows(callId, surfaceView, surfaceView) // issues
         setContentView(R.layout.av_screen)
-
+        android.util.Log.d(TAG, "callId" + callId)
     }
 
-    fun onBtnClick(view: View) {
-        android.util.Log.d("LifeCycle","isAppInForeground")
-//        abtoPhone.answerCall(inComingCallId,200,false)
-        abtoPhone.answerCall(inComingCallId,200, abtoPhone.isVideoCall(inComingCallId))
-        setContentView(R.layout.call)
-        return
+    fun onBtnClick(view: View) {                //button1(接聽)
+        val isAppInBackground = App.app?.isAppInBackground() ?: return
+        if (App.app?.abtoPhone != null) {
+            if (!isAppInBackground) {
+                android.util.Log.d("LifeCycle", "click answer in Foreground")
+//                abtoPhone.answerCall(inComingCallId, 200, false)
+                abtoPhone.answerCall(inComingCallId,200, true)
+                return
+            } else {
+                abtoPhone.answerCall(inComingCallId, 200, false)
+                android.util.Log.d("LifeCycle", "click answer in Background")
+            }
+        }
     }
 
-    fun onBtnClick1(view: View) {
-        abtoPhone.rejectCall(inComingCallId)
+
+    fun onBtnClick1(view: View) {               //button2(拒接)
+        val isAppInBackground = App.app?.isAppInBackground() ?: return
+        if (App.app?.abtoPhone != null) {
+            if (!isAppInBackground) {
+                android.util.Log.d("LifeCycle", "click answer in Foreground")
+                App.app?.abtoPhone?.rejectCall(inComingCallId)
+                setContentView(R.layout.call)
+            } else {
+                App.app?.abtoPhone?.rejectCall(inComingCallId)
+                android.util.Log.d("LifeCycle", "click answer in Background")
+            }
+        }
         setContentView(R.layout.activity_main)
-        return
     }
 
-    fun onBtnClick3(view: View) {
-        abtoPhone.rejectCall(inComingCallId)
+    fun onBtnClick3(view: View) {               //button3(掛斷)
+        val isAppInBackground = App.app?.isAppInBackground() ?: return
+        if (App.app?.abtoPhone != null) {
+            if (!isAppInBackground) {
+                android.util.Log.d("LifeCycle", "click answer in Foreground")
+                App.app?.abtoPhone?.rejectCall(inComingCallId)
+                setContentView(R.layout.call)
+            } else {
+                App.app?.abtoPhone?.rejectCall(inComingCallId)
+                android.util.Log.d("LifeCycle", "click answer in Background")
+            }
+        }
         setContentView(R.layout.activity_main)
-        return
+    }
+
+    override fun onCallConnected(p0: Int, p1: String?) {
+
+        android.util.Log.d("LifeCycle", "onCallConnected")
+        if (abtoPhone.isVideoCall(inComingCallId)) {
+            android.util.Log.d("LifeCycle", "" + abtoPhone.isVideoCall(inComingCallId))
+            setContentView(R.layout.call)
+            localView = findViewById(R.id.localView)
+            remoteView = findViewById(R.id.remoteView)
+            if (localView != null && remoteView != null) {
+                android.util.Log.d("LifeCycle", "start!")
+                localView?.setZOrderOnTop(true)
+                localView?.setZOrderMediaOverlay(true)
+                abtoPhone.setVideoWindows(inComingCallId, localView, remoteView)
+            }
+        }
+    }
+
+}
+
+============================================================================================
+CallEventsReceiver.kt
+**
+package com.example.sip
+
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.os.Bundle
+import android.os.RemoteException
+import android.util.Log
+import org.abtollc.sdk.AbtoPhone
+import org.abtollc.sdk.OnCallConnectedListener
+
+private var activeCallId = AbtoPhone.INVALID_CALL_ID
+
+
+class CallEventsReceiver : BroadcastReceiver() {
+
+    private var phone: AbtoPhone? = null
+
+    override fun onReceive(context: Context, intent: Intent) {
+
+        val bundle = intent.extras ?: return
+
+        phone = App.app?.abtoPhone
+
+        when {
+            bundle.getBoolean(AbtoPhone.IS_INCOMING, false) -> {
+                // Incoming call
+                buildIncomingCallNotification(context, bundle)
+            }
+            bundle.getBoolean(KEY_REJECT_CALL, false) -> {
+                // Reject call
+                val callId = bundle.getInt(AbtoPhone.CALL_ID)
+                cancelIncCallNotification(context, callId)
+                try {
+                    App.app?.abtoPhone?.rejectCall(callId)
+                } catch (e: RemoteException) {
+                    e.printStackTrace()
+                }
+            }
+            bundle.getInt(AbtoPhone.CODE) == -1 -> {
+                // Cancel call
+                val callId = bundle.getInt(AbtoPhone.CALL_ID)
+                cancelIncCallNotification(context, callId)
+            }
+        }
+    }
+
+    private fun buildIncomingCallNotification(context: Context, bundle: Bundle) {
+        // Cancel incoming call notification
+//        val intent = Intent(context, ScreenAV::class.java)
+//        intent.putExtras(bundle)
+//        if (!App.app!!.isAppInBackground()) { //App is foreground - start activity
+//            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+//            context.startActivity(intent)
+//            return
+//        }
+//        val isVideoCall = bundle.getBoolean(AbtoPhone.HAS_VIDEO, false)
+//        val title = if (isVideoCall) "Incoming video call Test" else "Incoming call Test"
+//        val remoteContact = bundle.getString(AbtoPhone.REMOTE_CONTACT)
+//        val callId = bundle.getInt(AbtoPhone.CALL_ID)
+//        // Create channel
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && channelCall == null) {
+//            channelCall = NotificationChannel(
+//                CHANEL_CALL_ID,
+//                context.getString(R.string.app_name) + " Call",
+//                NotificationManager.IMPORTANCE_HIGH
+//            )
+//            channelCall!!.description = context.getString(R.string.app_name)
+//            val notificationManager =
+//                context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+//            notificationManager?.createNotificationChannel(channelCall!!)
+//        }
+//        // Intent for launch ScreenAV
+//        val notificationPendingIntent = PendingIntent.getActivity(
+//            context, 1, intent,
+//            PendingIntent.FLAG_UPDATE_CURRENT
+//        )
+//        // Intent for pickup audio call
+//        val pickUpAudioIntent = Intent(context, ScreenAV::class.java)
+//        pickUpAudioIntent.putExtras(bundle)
+//        pickUpAudioIntent.putExtra(KEY_PICK_UP_AUDIO, true)
+//        val pickUpAudioPendingIntent = PendingIntent.getActivity(
+//            context, 2,
+//            pickUpAudioIntent, PendingIntent.FLAG_UPDATE_CURRENT
+//        )
+//        // Intent for reject call
+//        val rejectCallIntent = Intent()
+//        rejectCallIntent.setPackage(context.packageName)
+//        rejectCallIntent.action = AbtoPhone.ACTION_ABTO_CALL_EVENT
+//        rejectCallIntent.putExtra(AbtoPhone.CALL_ID, callId)
+//        rejectCallIntent.putExtra(KEY_REJECT_CALL, true)
+//        val pendingRejectCall = PendingIntent.getBroadcast(
+//            context, 4, rejectCallIntent,
+//            PendingIntent.FLAG_CANCEL_CURRENT
+//        )
+//        // Style for popup notification
+//        val bigText = NotificationCompat.BigTextStyle()
+//        bigText.bigText(remoteContact)
+//        bigText.setBigContentTitle(title)
+//        // Create notification
+//        val builder = NotificationCompat.Builder(context, CHANEL_CALL_ID)
+//        builder.setColor(-0xff0100)
+//            .setContentTitle(title)
+//            .setContentIntent(notificationPendingIntent)
+//            .setContentText(remoteContact)
+//            .setDefaults(Notification.DEFAULT_ALL)
+//            .setStyle(bigText)
+//            .setPriority(Notification.PRIORITY_MAX)
+//            .setCategory(NotificationCompat.CATEGORY_CALL)
+//            .addAction(R.drawable.ic_launcher_background, "Hang Up Test", pendingRejectCall)
+//            .addAction(R.drawable.ic_launcher_background, "Audio", pickUpAudioPendingIntent)
+//            .setFullScreenIntent(notificationPendingIntent, true)
+//        if (isVideoCall) {
+//            // Intent for pickup video call
+//            val pickUpVideoIntent = Intent(context, ScreenAV::class.java)
+//            pickUpVideoIntent.putExtras(bundle)
+//            pickUpVideoIntent.putExtra(KEY_PICK_UP_VIDEO, true)
+//            val pickUpVideoPendingIntent = PendingIntent.getActivity(
+//                context, 3,
+//                pickUpVideoIntent, PendingIntent.FLAG_UPDATE_CURRENT
+//            )
+//            val builder = null
+//            builder.addAction(R.drawable.ic_launcher_background, "Video", pickUpVideoPendingIntent)
+//        }
+//        val mNotificationManager =
+//            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+//        val notification = builder.build()
+//        mNotificationManager.notify(NOTIFICATION_INCOMING_CALL_ID + callId, notification)
+//
+//        val isAppInBackground = App.app?.isAppInBackground() ?: return
+//        if (!isAppInBackground) { //App is foreground - start activity
+//            Log.d("LifeCycle","isAppInForeground")
+//            phone?.answerCall(inComingCallId,200,false)
+//            return
+//        }
+//        phone?.answerCall(inComingCallId,200,false)
+//        Log.d("LifeCycle","isAppInBackground")
+    }
+
+    companion object {
+        const val CHANEL_CALL_ID = "abto_phone_call"
+        private var channelCall: NotificationChannel? = null
+        const val KEY_PICK_UP_AUDIO = "KEY_PICK_UP_AUDIO"
+        const val KEY_PICK_UP_VIDEO = "KEY_PICK_UP_VIDEO"
+        const val KEY_REJECT_CALL = "KEY_REJECT_CALL"
+        private const val NOTIFICATION_INCOMING_CALL_ID = 1000
+        fun cancelIncCallNotification(context: Context, callId: Int) {
+            val mNotificationManager =
+                context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            mNotificationManager?.cancel(NOTIFICATION_INCOMING_CALL_ID + callId)
+        }
     }
 }
 ============================================================================================
@@ -189,26 +396,37 @@ call.xml
     android:layout_height="match_parent"
     android:background="@color/grey"
     xmlns:app="http://schemas.android.com/apk/res-auto">
+        <SurfaceView
+            android:id="@+id/localView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_marginBottom="350dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
-    <SurfaceView
-        android:id="@+id/surfaceView"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/button3"
-        android:layout_marginBottom="200dp" />
+        <SurfaceView
+            android:id="@+id/remoteView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/localView" />
 
-
-    <Button
-        android:onClick="onBtnClick3"
-        android:id="@+id/button3"
-        android:layout_width="90dp"
-        android:layout_height="90dp"
-        android:text="掛斷"
-        android:background="@drawable/shape_circle"
-        app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        android:layout_marginRight="155dp"
-        android:layout_marginBottom="80dp" />
+        <Button
+            android:onClick="onBtnClick3"
+            android:id="@+id/button3"
+            android:layout_width="90dp"
+            android:layout_height="90dp"
+            android:text="@string/button2"
+            android:background="@drawable/shape_circle"
+            android:backgroundTint="@color/red"
+            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            android:layout_marginRight="155dp"
+            android:layout_marginBottom="20dp" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
+============================================================================================
