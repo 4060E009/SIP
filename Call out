@@ -6,8 +6,6 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import android.os.Build
-import android.os.PowerManager
-import android.os.PowerManager.WakeLock
 import android.os.RemoteException
 import android.view.SurfaceView
 import android.view.View
@@ -33,11 +31,13 @@ val  RegUser = "004"
 
 var inComingCallId: Int = 0
 
-
+//@SuppressLint("StaticFieldLeak")
+//private var localView: SurfaceView? = null
 @SuppressLint("StaticFieldLeak")
 private var remoteView: SurfaceView? = null
 
-class MainActivity : AppCompatActivity(), OnInitializeListener, OnIncomingCallListener, OnCallConnectedListener {
+class MainActivity : AppCompatActivity(), OnInitializeListener, OnIncomingCallListener, OnCallConnectedListener,
+    OnCallDisconnectedListener, OnCallErrorListener, OnRemoteAlertingListener {
 
     val TAG = "MainActivity"
 
@@ -61,6 +61,9 @@ class MainActivity : AppCompatActivity(), OnInitializeListener, OnIncomingCallLi
         }
         abtoPhone.setIncomingCallListener(this)
         abtoPhone.setCallConnectedListener(this)
+        abtoPhone.setCallDisconnectedListener(this)
+        abtoPhone.setCallErrorListener(this)
+        abtoPhone.setRemoteAlertingListener(this)
 
         // Set registration event
         abtoPhone.setRegistrationStateListener(object : OnRegistrationListener {
@@ -80,13 +83,12 @@ class MainActivity : AppCompatActivity(), OnInitializeListener, OnIncomingCallLi
 
     private fun initPhone() {
         val config: AbtoPhoneCfg = abtoPhone.getConfig()
-        config.setCodecPriority(Codec.G729, 0.toShort())
-        config.setCodecPriority(Codec.GSM, 0.toShort())
-        config.setCodecPriority(Codec.PCMU, 200.toShort())
-        config.setCodecPriority(Codec.PCMA, 100.toShort())
+        for (c in Codec.values()) config.setCodecPriority(c, 0.toShort())
+        config.setCodecPriority(Codec.G729, 81.toShort())
+        config.setCodecPriority(Codec.PCMA, 80.toShort())
+        config.setCodecPriority(Codec.PCMU, 79.toShort())
         config.setCodecPriority(Codec.H264, 220.toShort())
         config.setCodecPriority(Codec.H263_1998, 210.toShort())
-        config.isVideoCallEnabled = true
         config.sipPort = 0
         config.setSignallingTransport(AbtoPhoneCfg.SignalingTransportType.UDP)
         config.videoQualityMode = AbtoPhoneCfg.VIDEO_QUALITY_MODE.VIDEO_MODE_1920_1080
@@ -157,7 +159,7 @@ class MainActivity : AppCompatActivity(), OnInitializeListener, OnIncomingCallLi
     override fun OnIncomingCall(callId: Int, remoteContact: String?, accountId: Long) {
         inComingCallId = callId
         setContentView(R.layout.av_screen)
-        android.util.Log.d(TAG, "callId" + callId)
+        android.util.Log.d("LifeCycle", "OnIncomingCall" + callId)
     }
 
     fun onBtnClick(view: View) {                //button1(接聽)
@@ -207,35 +209,52 @@ class MainActivity : AppCompatActivity(), OnInitializeListener, OnIncomingCallLi
     }
 
     // call out methods
-    fun onBtnClick4(view: View) {
-        var userID: String = "111"
+    fun onBtnClick4(view: View) {               //button4(撥打語音電話)
+        var userID: String = "007"
         abtoPhone.startCall(userID, abtoPhone.currentAccountId)
+        setContentView(R.layout.dialog)
     }
 
     // video call out methods
-    fun onBtnClick5(view: View) {
-        var userID: String = "111"
+    fun onBtnClick5(view: View) {               //button4(撥打視訊電話)
+        var userID: String = "007"
         abtoPhone.startVideoCall(userID, abtoPhone.currentAccountId)
+        setContentView(R.layout.dialog)
     }
 
-    override fun onCallConnected(p0: Int, p1: String?) {
+override fun onCallConnected(p0: Int, p1: String?) {
+    inComingCallId = p0
+    android.util.Log.d("LifeCycle", "onCallConnected" + p0)
+    android.util.Log.d("LifeCycle", "onCallConnected")
+//    if (abtoPhone.isVideoCall(inComingCallId)) {
+//        android.util.Log.d("LifeCycle", "" + abtoPhone.isVideoCall(inComingCallId))
 
-        android.util.Log.d("LifeCycle", "onCallConnected")
-        if (abtoPhone.isVideoCall(inComingCallId)) {
-            android.util.Log.d("LifeCycle", "" + abtoPhone.isVideoCall(inComingCallId))
-            setContentView(R.layout.call)
-            remoteView = findViewById(R.id.remoteView)
-            if (remoteView != null) {
-                android.util.Log.d("LifeCycle", "start!")
-                remoteView?.setZOrderOnTop(true)
-                remoteView?.setZOrderMediaOverlay(true)
-                abtoPhone.setVideoWindows(inComingCallId, remoteView, remoteView)
-            }
+        setContentView(R.layout.call)
+        remoteView = findViewById(R.id.remoteView)
+        if (remoteView != null) {
+            android.util.Log.d("LifeCycle", "start!")
+            remoteView?.setZOrderOnTop(true)
+            remoteView?.setZOrderMediaOverlay(true)
+            abtoPhone.setVideoWindows(inComingCallId, null, remoteView)
+//        }
         }
     }
 
+    override fun onCallDisconnected(p0: Int, p1: String?, p2: Int, p3: String?) {
+        android.util.Log.d("LifeCycle", "onCallDisconnected")
+        setContentView(R.layout.activity_main)
+    }
 
+    override fun onCallError(p0: String?, p1: Int, p2: String?) {
+        android.util.Log.d("LifeCycle", "onCallError")
+    }
+
+    override fun onRemoteAlerting(p0: Int, p1: Int, p2: Long) {
+        android.util.Log.d("LifeCycle", "onRemoteAlerting")
+    }
 }
+
+
 =============================================================================================
 activity_main.xml
 **
@@ -274,3 +293,44 @@ activity_main.xml
 
 </androidx.constraintlayout.widget.ConstraintLayout>
 =============================================================================================
+call.xml
+**
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/grey"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+<!--        <SurfaceView-->
+<!--            android:id="@+id/localView"-->
+<!--            android:layout_width="match_parent"-->
+<!--            android:layout_height="match_parent"-->
+<!--            android:layout_marginBottom="350dp"-->
+<!--            app:layout_constraintBottom_toBottomOf="parent"-->
+<!--            app:layout_constraintEnd_toEndOf="parent"-->
+<!--            app:layout_constraintStart_toStartOf="parent"-->
+<!--            app:layout_constraintTop_toTopOf="parent" />-->
+
+        <SurfaceView
+            android:id="@+id/remoteView"
+            android:layout_width="200dp"
+            android:layout_height="200dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <Button
+            android:onClick="onBtnClick3"
+            android:id="@+id/button3"
+            android:layout_width="90dp"
+            android:layout_height="90dp"
+            android:text="@string/button2"
+            android:background="@drawable/shape_circle"
+            android:backgroundTint="@color/red"
+            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            android:layout_marginRight="155dp"
+            android:layout_marginBottom="20dp" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
