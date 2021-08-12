@@ -66,15 +66,15 @@ class MainActivity : AppCompatActivity(), OnInitializeListener, OnIncomingCallLi
         // Set registration event(設置註冊事件)
         abtoPhone.setRegistrationStateListener(object : OnRegistrationListener {
             override fun onRegistrationFailed(accId: Long, statusCode: Int, statusText: String) {
-                android.util.Log.d(TAG, "onRegistrationFailed ")
+                android.util.Log.d(TAG, "onRegistrationFailed ")        //註冊失敗
             }
 
             override fun onRegistered(accId: Long) {
-                android.util.Log.d(TAG, "onRegistered")
+                android.util.Log.d(TAG, "onRegistered")                 //已註冊
             }
 
             override fun onUnRegistered(accId: Long) {
-                android.util.Log.d(TAG, "onUnRegistered")
+                android.util.Log.d(TAG, "onUnRegistered")               //未註冊
             }
         })
     }
@@ -98,7 +98,7 @@ class MainActivity : AppCompatActivity(), OnInitializeListener, OnIncomingCallLi
         android.util.Log.d(TAG, "initPhone: " + abtoPhone)
     }
 
-    private fun askPermissions(): Boolean {
+    private fun askPermissions(): Boolean {                 //詢問權限(權限檢查)
         android.util.Log.d(TAG, "askPermissions: ")
         val permissionsNeeded: ArrayList<String> = ArrayList<String>()
         val permissionsList: ArrayList<String> = ArrayList<String>()
