@@ -50,7 +50,7 @@ class MainActivity : AppCompatActivity(), OnInitializeListener, OnIncomingCallLi
         if (bCanStartPhoneInitialization) initPhone()
 
         abtoPhone.config.addAccount(RegDomain, RegProxy, RegUser, RegPassword, null, "", 300, false)
-        //Register
+        //Register(註冊/登記)
         try {
             abtoPhone.register()
         } catch (e: RemoteException) {
@@ -63,7 +63,7 @@ class MainActivity : AppCompatActivity(), OnInitializeListener, OnIncomingCallLi
         abtoPhone.setCallErrorListener(this)
         abtoPhone.setRemoteAlertingListener(this)
 
-        // Set registration event
+        // Set registration event(設置註冊事件)
         abtoPhone.setRegistrationStateListener(object : OnRegistrationListener {
             override fun onRegistrationFailed(accId: Long, statusCode: Int, statusText: String) {
                 android.util.Log.d(TAG, "onRegistrationFailed ")
@@ -88,7 +88,7 @@ class MainActivity : AppCompatActivity(), OnInitializeListener, OnIncomingCallLi
         config.setCodecPriority(Codec.H264, 220.toShort())
         config.setCodecPriority(Codec.H263_1998, 210.toShort())
         config.sipPort = 0
-        config.setEnableAutoSendRtpVideo(false)
+        config.setEnableAutoSendRtpVideo(false)         //設定關閉自己的視頻畫面
         config.setSignallingTransport(AbtoPhoneCfg.SignalingTransportType.UDP)
         config.videoQualityMode = AbtoPhoneCfg.VIDEO_QUALITY_MODE.VIDEO_MODE_1920_1080
         Log.setLogLevel(5)
@@ -164,12 +164,12 @@ class MainActivity : AppCompatActivity(), OnInitializeListener, OnIncomingCallLi
     fun onBtnClick(view: View) {                //button1(接聽)
         val isAppInBackground = App.app?.isAppInBackground() ?: return
         if (App.app?.abtoPhone != null) {
-            if (!isAppInBackground) {
+            if (!isAppInBackground) {           //前景
                 android.util.Log.d("LifeCycle", "click answer in Foreground")
-//                abtoPhone.answerCall(inComingCallId, 200, false)
-                abtoPhone.answerCall(inComingCallId,200, true)
+//                abtoPhone.answerCall(inComingCallId, 200, false)                  //false無視頻
+                abtoPhone.answerCall(inComingCallId,200, true)      //true有視頻
                 return
-            } else {
+            } else {                            //背景
                 abtoPhone.answerCall(inComingCallId, 200, false)
                 android.util.Log.d("LifeCycle", "click answer in Background")
             }
@@ -221,12 +221,11 @@ class MainActivity : AppCompatActivity(), OnInitializeListener, OnIncomingCallLi
         setContentView(R.layout.dialog)
     }
 
-override fun onCallConnected(p0: Int, p1: String?) {
+override fun onCallConnected(p0: Int, p1: String?) {        //通話連接
     inComingCallId = p0
+
     android.util.Log.d("LifeCycle", "onCallConnected" + p0)
     android.util.Log.d("LifeCycle", "onCallConnected")
-//    if (abtoPhone.isVideoCall(inComingCallId)) {
-//        android.util.Log.d("LifeCycle", "" + abtoPhone.isVideoCall(inComingCallId))
 
         setContentView(R.layout.call)
         remoteView = findViewById(R.id.remoteView)
@@ -235,11 +234,10 @@ override fun onCallConnected(p0: Int, p1: String?) {
             remoteView?.setZOrderOnTop(true)
             remoteView?.setZOrderMediaOverlay(true)
             abtoPhone.setVideoWindows(inComingCallId, null, remoteView)
-//        }
         }
     }
 
-    override fun onCallDisconnected(p0: Int, p1: String?, p2: Int, p3: String?) {
+    override fun onCallDisconnected(p0: Int, p1: String?, p2: Int, p3: String?) {           //通話中斷
         android.util.Log.d("LifeCycle", "onCallDisconnected")
         setContentView(R.layout.activity_main)
     }
