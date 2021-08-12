@@ -31,8 +31,6 @@ val  RegUser = "004"
 
 var inComingCallId: Int = 0
 
-//@SuppressLint("StaticFieldLeak")
-//private var localView: SurfaceView? = null
 @SuppressLint("StaticFieldLeak")
 private var remoteView: SurfaceView? = null
 
@@ -90,6 +88,7 @@ class MainActivity : AppCompatActivity(), OnInitializeListener, OnIncomingCallLi
         config.setCodecPriority(Codec.H264, 220.toShort())
         config.setCodecPriority(Codec.H263_1998, 210.toShort())
         config.sipPort = 0
+        config.setEnableAutoSendRtpVideo(false)
         config.setSignallingTransport(AbtoPhoneCfg.SignalingTransportType.UDP)
         config.videoQualityMode = AbtoPhoneCfg.VIDEO_QUALITY_MODE.VIDEO_MODE_1920_1080
         Log.setLogLevel(5)
@@ -156,7 +155,7 @@ class MainActivity : AppCompatActivity(), OnInitializeListener, OnIncomingCallLi
 
     }
 
-    override fun OnIncomingCall(callId: Int, remoteContact: String?, accountId: Long) {
+    override fun OnIncomingCall(callId: Int, remoteContact: String?, accountId: Long) {     //來電
         inComingCallId = callId
         setContentView(R.layout.av_screen)
         android.util.Log.d("LifeCycle", "OnIncomingCall" + callId)
@@ -253,8 +252,6 @@ override fun onCallConnected(p0: Int, p1: String?) {
         android.util.Log.d("LifeCycle", "onRemoteAlerting")
     }
 }
-
-
 =============================================================================================
 activity_main.xml
 **
